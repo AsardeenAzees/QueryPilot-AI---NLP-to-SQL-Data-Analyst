@@ -31,7 +31,11 @@ The browser never receives database, Gemini, or Upstash credentials. There is no
 - PostgreSQL AST validation, table allowlisting, forbidden-operation checks, single-statement enforcement, and a hard 200-row result cap
 - Neon read-only database role and five-second statement timeout
 - Upstash fixed-window rate limiting (10 questions/IP/24 hours) and one-hour public IPL cache
-- Responsive accessible dashboard, Recharts visualisation, SQL disclosure, CSV export, and localStorage history
+- Responsive accessible dashboard with light, dark, and system themes
+- Six-step request progress experience, friendly retry states, keyboard submission, and duplicate-request prevention
+- Responsive Recharts visualisation, sticky result tables, and CSV export
+- Syntax-highlighted PostgreSQL viewer with copy and expand/collapse controls; SQL remains available for cached answers
+- Device-local query history with timestamps, rerun, clear-history, and a 10-question limit
 - Vitest, Playwright, verified IPL facts, GitHub Actions, and Vercel-ready configuration
 
 ## Quick start
@@ -90,6 +94,95 @@ Verified expectations for the supplied dataset:
 | `npm test` | Run Vitest unit and contract tests |
 | `npm run test:e2e` | Run Playwright browser tests |
 | `npm run build` | Create the production build |
+
+## Quality assurance
+
+QueryPilot includes both developer-level quality checks and automated QA flows.
+
+### Unit and security tests
+
+Vitest checks:
+
+- question validation and malicious-input rejection
+- semantic-model loading and verified IPL facts
+- PostgreSQL parser behavior
+- SELECT and WITH/SELECT acceptance
+- DELETE, DROP, multiple-statement, system-schema, and unknown-table rejection
+- 200-row enforcement
+- chart configuration validation
+
+Run the suite with:
+
+```bash
+npm test
+```
+
+### End-to-end UI tests
+
+Playwright runs the application in Chromium with deterministic mock API responses. It does not spend Gemini quota or require production database credentials. The browser suite covers:
+
+- dashboard and mobile layout
+- light/dark theme persistence
+- example-question selection
+- Ctrl/Cmd + Enter submission
+- loading progress and duplicate-submit prevention
+- successful and cached result rendering
+- generated SQL visibility, copy, expand, and collapse
+- query-history rerun
+- CSV download
+- friendly service, malicious-input, and rate-limit errors
+
+Run it locally with:
+
+```bash
+npx playwright install chromium
+npm run test:e2e
+```
+
+### Recommended local quality gate
+
+Before pushing a branch or opening a pull request, run:
+
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run test:e2e
+npm run build
+```
+
+## DevOps and CI/CD
+
+The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml`. It runs automatically on every push and pull request.
+
+```mermaid
+flowchart LR
+  P["Push or pull request"] --> Q["Quality job"]
+  P --> E["E2E job"]
+  Q --> I1["npm ci"]
+  I1 --> T["TypeScript"]
+  T --> L["ESLint"]
+  L --> U["Vitest"]
+  U --> B["Production build"]
+  E --> I2["npm ci"]
+  I2 --> C["Install Chromium"]
+  C --> PW["Playwright tests"]
+  PW -->|failure| A["Upload Playwright report"]
+```
+
+The workflow is continuous integration (CI): it validates that a change is safe to merge. It does not directly deploy the application.
+
+### What to do in GitHub
+
+1. Create a GitHub repository and push this project, including `.github/workflows/ci.yml`.
+2. Open the repository's **Actions** tab and confirm the `CI` workflow starts.
+3. Fix any failing check before merging changes.
+4. In **Settings → Branches**, optionally protect `main` and require both `quality` and `e2e` checks before merging.
+5. Do not commit `.env`, CSV files, database passwords, or API keys.
+
+The current CI workflow does not need Neon, Gemini, or Upstash secrets because browser tests use `E2E_MOCK_API=true`, and the production build does not execute live queries. Application secrets are needed only in local `.env` files and the Vercel project environment.
+
+For deployment, connect the GitHub repository to Vercel. Vercel can create preview deployments for pull requests and a production deployment when changes reach the configured production branch. Add the server environment variables in Vercel rather than GitHub unless a future workflow explicitly performs live integration tests or deployment.
 
 ## Security boundary
 
