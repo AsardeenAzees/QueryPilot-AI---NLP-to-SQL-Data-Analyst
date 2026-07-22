@@ -1,0 +1,134 @@
+{
+  "dataset": {
+    "id": "ipl",
+    "name": "Indian Premier League",
+    "description": "Public IPL match and delivery data. Names are stored as dataset display names, for example CH Gayle and YS Chahal."
+  },
+  "tables": {
+    "teams": {
+      "description": "One row per IPL team identity.",
+      "columns": {
+        "team_id": "Stable numeric team identifier.",
+        "team_name": "Full team name.",
+        "team_short_name": "Common abbreviation.",
+        "team_city": "Team's represented city.",
+        "home_venue": "Team's usual home venue."
+      }
+    },
+    "player_info": {
+      "description": "Player biographical and playing-style details.",
+      "columns": {
+        "player_id": "Stable numeric player identifier.",
+        "player_name": "Player display name.",
+        "date_of_birth": "Birth date.",
+        "batting_hand": "Batting handedness.",
+        "bowling_skill": "Bowling style.",
+        "country": "Country represented.",
+        "is_umpire": "Whether the record represents an umpire."
+      }
+    },
+    "ipl_match": {
+      "description": "One row per IPL match, including participating teams and outcome.",
+      "columns": {
+        "match_id": "Stable match identifier.",
+        "season_id": "IPL season year or identifier.",
+        "match_date": "Calendar date of the match.",
+        "match_number": "Tournament match label.",
+        "city": "Host city.",
+        "venue": "Ground or stadium.",
+        "team1": "First listed team.",
+        "team2": "Second listed team.",
+        "toss_winner": "Team winning the toss.",
+        "toss_decision": "Toss winner decision.",
+        "match_winner": "Winning team; null for no result.",
+        "result": "Outcome type.",
+        "result_margin": "Numeric winning margin when available.",
+        "player_of_match": "Award recipient.",
+        "umpire1": "First on-field umpire.",
+        "umpire2": "Second on-field umpire.",
+        "method": "Adjusted-result method such as D/L."
+      }
+    },
+    "ball_by_ball": {
+      "description": "One row per recorded delivery in a match.",
+      "columns": {
+        "match_id": "Match identifier; always include this when grouping overs across matches.",
+        "season_id": "IPL season identifier.",
+        "innings_no": "Innings number within a match.",
+        "over_no": "Over number within an innings.",
+        "ball_no": "Delivery sequence within an over.",
+        "batter": "Striker facing the delivery.",
+        "non_striker": "Batter at the non-striker's end.",
+        "bowler": "Bowler delivering the ball.",
+        "team_batting": "Batting team.",
+        "team_bowling": "Bowling team.",
+        "batter_runs": "Runs credited to the batter.",
+        "extra_runs": "All extra runs on the delivery.",
+        "total_runs": "Total runs scored on the delivery.",
+        "is_wicket": "Whether a dismissal was recorded.",
+        "player_dismissed": "Dismissed player's name.",
+        "dismissal_kind": "Dismissal type.",
+        "fielder": "Fielder involved, when applicable.",
+        "extras_type": "Type of extras.",
+        "wides": "Wide runs.",
+        "no_balls": "No-ball runs.",
+        "byes": "Bye runs.",
+        "leg_byes": "Leg-bye runs.",
+        "penalty_runs": "Penalty runs."
+      }
+    }
+  },
+  "relationships": [
+    { "from": "ball_by_ball.match_id", "to": "ipl_match.match_id", "type": "many-to-one" },
+    { "from": "ball_by_ball.batter", "to": "player_info.player_name", "type": "many-to-one", "reliability": "name-based" },
+    { "from": "ball_by_ball.bowler", "to": "player_info.player_name", "type": "many-to-one", "reliability": "name-based" }
+  ],
+  "synonyms": {
+    "batter": ["batsman", "striker", "player batting"],
+    "batter_runs": ["runs off the bat", "batting runs"],
+    "six": ["sixes", "maximum"],
+    "four": ["fours", "boundary"],
+    "match_winner": ["winner", "won the match"],
+    "venue": ["ground", "stadium"],
+    "dismissal_kind": ["wicket type", "mode of dismissal"]
+  },
+  "businessCalculations": {
+    "six": "A six is a delivery where ball_by_ball.batter_runs = 6.",
+    "four": "A four is a delivery where ball_by_ball.batter_runs = 4.",
+    "dot_ball": "A dot ball is a delivery where ball_by_ball.total_runs = 0.",
+    "bowler_wicket": "Count a wicket for the bowler only when is_wicket is true and lower(dismissal_kind) is not in ('run out', 'retired hurt', 'retired out', 'obstructing the field').",
+    "batting_runs": "Sum ball_by_ball.batter_runs, not total_runs.",
+    "overs_across_matches": "Group by match_id, innings_no, and over_no before aggregating overs across matches.",
+    "matches_won": "Count non-null ipl_match.match_winner values grouped by match_winner."
+  },
+  "verifiedExamples": [
+    {
+      "question": "Who hit the most sixes?",
+      "sql": "SELECT batter, COUNT(*) AS sixes FROM ball_by_ball WHERE batter_runs = 6 GROUP BY batter ORDER BY sixes DESC LIMIT 10",
+      "expectedTopRow": { "batter": "CH Gayle", "sixes": 359 }
+    },
+    {
+      "question": "Who took the most wickets?",
+      "sql": "SELECT bowler, COUNT(*) AS wickets FROM ball_by_ball WHERE is_wicket = true AND lower(dismissal_kind) NOT IN ('run out', 'retired hurt', 'retired out', 'obstructing the field') GROUP BY bowler ORDER BY wickets DESC LIMIT 10",
+      "expectedTopRow": { "bowler": "YS Chahal", "wickets": 221 }
+    },
+    {
+      "question": "Which team won the most matches?",
+      "sql": "SELECT match_winner AS team, COUNT(*) AS wins FROM ipl_match WHERE match_winner IS NOT NULL GROUP BY match_winner ORDER BY wins DESC LIMIT 10"
+    },
+    {
+      "question": "Which venues hosted the most matches?",
+      "sql": "SELECT venue, COUNT(*) AS matches FROM ipl_match WHERE venue IS NOT NULL GROUP BY venue ORDER BY matches DESC LIMIT 20"
+    }
+  ],
+  "sqlRules": [
+    "PostgreSQL only.",
+    "Use only the listed tables and columns; never invent a column.",
+    "Return exactly one SELECT statement or one WITH statement whose final operation is SELECT.",
+    "Never use DDL, DML, transaction, COPY, CALL, file, network, system catalog, or extension operations.",
+    "Never access information_schema, pg_catalog, or any schema other than public.",
+    "Add LIMIT 200 unless the query is a small aggregate result.",
+    "Return only columns necessary to answer the question.",
+    "Use match_id with innings_no and over_no when grouping overs across multiple matches."
+  ]
+}

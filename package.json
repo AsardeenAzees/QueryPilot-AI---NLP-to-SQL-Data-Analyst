@@ -1,0 +1,52 @@
+{
+  "name": "querypilot-ai",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "data:import": "tsx scripts/data/import.ts"
+  },
+  "dependencies": {
+    "@google/genai": "^1.29.0",
+    "@neondatabase/serverless": "^1.0.2",
+    "@upstash/ratelimit": "^2.0.7",
+    "@upstash/redis": "^1.35.6",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "csv-parse": "^6.1.0",
+    "iconv-lite": "^0.7.0",
+    "lucide-react": "^0.468.0",
+    "next": "^16.0.7",
+    "pgsql-ast-parser": "^12.0.2",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "recharts": "^3.5.1",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.3",
+    "@playwright/test": "^1.57.0",
+    "@tailwindcss/postcss": "^4.1.17",
+    "@types/iconv-lite": "^0.0.1",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.3",
+    "@types/react-dom": "^19.0.2",
+    "es-abstract": "^1.24.2",
+    "eslint": "^9.17.0",
+    "eslint-config-next": "^16.0.7",
+    "hermes-parser": "^0.25.1",
+    "tailwindcss": "^4.1.17",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}

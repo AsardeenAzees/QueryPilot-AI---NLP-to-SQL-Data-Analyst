@@ -1,0 +1,93 @@
+{
+  "id": "ipl",
+  "name": "Indian Premier League",
+  "description": "Ball-by-ball IPL match, player, and team data for public analysis.",
+  "public": true,
+  "semanticModel": "config/semantic/ipl.json",
+  "files": [
+    {
+      "path": "data/source/TEAMS.csv",
+      "table": "teams",
+      "encoding": "utf8",
+      "conflictColumns": ["team_id"],
+      "columns": {
+        "team_id": ["team_id", "team_sk", "Team_Id", "TeamID"],
+        "team_name": ["team_name", "team", "Team_Name", "TeamName"],
+        "team_short_name": ["team_short_name", "team_name_short", "short_name", "Team_Short_Name"],
+        "team_city": ["team_city", "city", "Team_City"],
+        "home_venue": ["home_venue", "venue", "Home_Venue"]
+      }
+    },
+    {
+      "path": "data/source/PLAYER_INFO.csv",
+      "table": "player_info",
+      "encoding": "win1252",
+      "conflictColumns": ["player_id"],
+      "columns": {
+        "player_id": ["player_id", "player_sk", "Player_Id", "PLAYER_SK"],
+        "player_name": ["player_name", "player", "Player_Name", "PlayerName"],
+        "date_of_birth": ["date_of_birth", "dob", "DOB", "Born"],
+        "batting_hand": ["batting_hand", "bat_style", "Batting_Hand", "BattingHand"],
+        "bowling_skill": ["bowling_skill", "bowl_style", "Bowling_Skill", "BowlingSkill"],
+        "country": ["country", "Country"],
+        "is_umpire": ["is_umpire", "Is_Umpire", "Umpire"]
+      }
+    },
+    {
+      "path": "data/source/IPL_MATCH.csv",
+      "table": "ipl_match",
+      "encoding": "utf8",
+      "conflictColumns": ["match_id"],
+      "columns": {
+        "match_id": ["match_id", "id", "Match_Id", "MatchID"],
+        "season_id": ["season_id", "season", "Season_Id", "Season"],
+        "match_date": ["match_date", "date", "Match_Date"],
+        "match_number": ["match_number", "match_no", "Match_Number"],
+        "city": ["city", "City"],
+        "venue": ["venue", "Venue_Name", "Venue"],
+        "team1": ["team1", "Team1", "Team_Name_Id"],
+        "team2": ["team2", "Team2", "Opponent_Team"],
+        "toss_winner": ["toss_winner", "Toss_Winner"],
+        "toss_decision": ["toss_decision", "Toss_Decision"],
+        "match_winner": ["match_winner", "winner", "Winner", "Match_Winner"],
+        "result": ["result", "Result_Type"],
+        "result_margin": ["result_margin", "win_by_runs", "Win_Margin"],
+        "player_of_match": ["player_of_match", "player_of_the_match", "Man_Of_The_Match"],
+        "umpire1": ["umpire1", "Umpire1"],
+        "umpire2": ["umpire2", "Umpire2"],
+        "method": ["method", "Method"]
+      }
+    },
+    {
+      "path": "data/source/BALL_BY_BALL.csv",
+      "table": "ball_by_ball",
+      "encoding": "utf8",
+      "conflictColumns": ["match_id", "innings_no", "over_no", "ball_no"],
+      "columns": {
+        "match_id": ["match_id", "Match_Id", "ID"],
+        "season_id": ["season_id", "Season_Id", "Season"],
+        "innings_no": ["innings_no", "innings", "Innings_Id"],
+        "over_no": ["over_no", "over_number", "over", "Over_Id"],
+        "ball_no": ["ball_no", "ball_number", "ball", "Ball_Id"],
+        "batter": ["batter", "striker", "Striker"],
+        "non_striker": ["non_striker", "Non_Striker"],
+        "bowler": ["bowler", "Bowler"],
+        "team_batting": ["team_batting", "batting_team", "Team_Batting"],
+        "team_bowling": ["team_bowling", "bowling_team", "Team_Bowling"],
+        "batter_runs": ["batter_runs", "runs_off_bat", "Runs_Scored"],
+        "extra_runs": ["extra_runs", "extras", "Extra_runs"],
+        "total_runs": ["total_runs", "Total_Runs"],
+        "is_wicket": ["is_wicket", "wicket", "Bowler_Wicket"],
+        "player_dismissed": ["player_dismissed", "player_out", "Player_Out"],
+        "dismissal_kind": ["dismissal_kind", "wicket_kind", "wicket_type", "Out_type"],
+        "fielder": ["fielder", "fielders_involved", "Fielders"],
+        "extras_type": ["extras_type", "Extra_Type"],
+        "wides": ["wides", "wide_ball_runs", "Wides"],
+        "no_balls": ["no_balls", "no_ball_runs", "noballs", "Noballs"],
+        "byes": ["byes", "bye_runs", "Byes"],
+        "leg_byes": ["leg_byes", "leg_bye_runs", "legbyes", "Legbyes"],
+        "penalty_runs": ["penalty_runs", "penalty", "Penalty"]
+      }
+    }
+  ]
+}

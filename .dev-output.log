@@ -1,0 +1,14 @@
+
+> querypilot-ai@1.0.0 dev
+> next dev --webpack
+
+▲ Next.js 16.2.11 (webpack)
+- Local:         http://localhost:3000
+- Network:       http://10.41.175.79:3000
+✓ Ready in 4.0s
+- Experiments (use with caution):
+  · serverActions
+
+○ Compiling / ...
+ GET / 200 in 20.1s (next.js: 16.7s, application-code: 3.4s)
+○ Compiling /api/overview ...
