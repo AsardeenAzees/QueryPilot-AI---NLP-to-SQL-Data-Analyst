@@ -62,7 +62,7 @@ Playwright starts the app with deterministic mock query results; it does not spe
 ## 6. Vercel deployment
 
 1. Push the repository to GitHub and import it in Vercel as a Next.js project.
-2. Add `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `QUERY_RATE_LIMIT=20`, and `QUERY_RATE_WINDOW=24h` to Production and Preview environments. If `QUERY_RATE_LIMIT` is absent or invalid, QueryPilot safely defaults to 10 questions per IP.
+2. Add `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `QUERY_RATE_LIMIT_ENABLED=true`, `QUERY_RATE_LIMIT=20`, and `QUERY_RATE_WINDOW=24h` to Production and Preview environments. If `QUERY_RATE_LIMIT` is absent or invalid, QueryPilot safely defaults to 10 questions per IP. Set `QUERY_RATE_LIMIT_ENABLED=false` only in a controlled testing environment; this bypasses IP reading and Upstash rate-limit checks while leaving result caching enabled.
 3. Do **not** add `DATABASE_ADMIN_URL` to Vercel.
 4. In Vercel, confirm each variable is enabled for **Production** (not only Development or Preview), has no surrounding quotes or trailing spaces, and then redeploy. Environment changes do not modify an already-running deployment.
 5. Test `/api/overview` first, then submit a new, uncached question. If overview works but questions fail, inspect **Project > Deployments > Functions > `/api/query`**; the API returns separate safe codes for Gemini configuration, Gemini availability, Upstash rate limiting, SQL validation, and Neon availability.

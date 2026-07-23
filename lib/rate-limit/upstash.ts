@@ -9,6 +9,10 @@ let limiter: Ratelimit | null | undefined;
 
 const DEFAULT_QUERY_RATE_LIMIT = 10;
 
+export function isQueryRateLimitEnabled(): boolean {
+  return process.env.QUERY_RATE_LIMIT_ENABLED?.trim().toLowerCase() !== "false";
+}
+
 export function getQueryRateLimit(): number {
   const configured = Number(process.env.QUERY_RATE_LIMIT);
   return Number.isInteger(configured) && configured > 0 ? configured : DEFAULT_QUERY_RATE_LIMIT;

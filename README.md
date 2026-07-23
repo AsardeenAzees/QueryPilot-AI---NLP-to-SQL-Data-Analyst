@@ -182,7 +182,7 @@ The workflow is continuous integration (CI): it validates that a change is safe 
 
 The current CI workflow does not need Neon, Gemini, or Upstash secrets because browser tests use `E2E_MOCK_API=true`, and the production build does not execute live queries. Application secrets are needed only in local `.env` files and the Vercel project environment.
 
-For deployment, connect the GitHub repository to Vercel. Vercel can create preview deployments for pull requests and a production deployment when changes reach the configured production branch. Add the server environment variables in Vercel rather than GitHub unless a future workflow explicitly performs live integration tests or deployment. Set `QUERY_RATE_LIMIT=20` in the Vercel Production environment for the intended public allowance; when it is missing or invalid, the server defaults to 10 questions per IP.
+For deployment, connect the GitHub repository to Vercel. Vercel can create preview deployments for pull requests and a production deployment when changes reach the configured production branch. Add the server environment variables in Vercel rather than GitHub unless a future workflow explicitly performs live integration tests or deployment. Set `QUERY_RATE_LIMIT_ENABLED=true` and `QUERY_RATE_LIMIT=20` in the Vercel Production environment for the intended public allowance; when the limit is missing or invalid, the server defaults to 10 questions per IP. Local testing can set `QUERY_RATE_LIMIT_ENABLED=false`, which bypasses IP reading and Upstash rate-limit enforcement without disabling result caching.
 
 ## Security boundary
 

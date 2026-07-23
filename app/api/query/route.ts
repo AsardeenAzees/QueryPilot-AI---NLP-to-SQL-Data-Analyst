@@ -4,7 +4,7 @@ import { generateQuery, repairQuery } from "@/lib/ai/gemini";
 import { GeminiQueryError } from "@/lib/ai/errors";
 import { loadSemanticModel } from "@/lib/data/loaders";
 import { executeReadOnlyQuery } from "@/lib/db/neon";
-import { cacheResult, checkRateLimit, getCachedResult } from "@/lib/rate-limit/upstash";
+import { cacheResult, checkRateLimit, getCachedResult, isQueryRateLimitEnabled } from "@/lib/rate-limit/upstash";
 import { questionSchema, type GeneratedQuery, type QueryResponse } from "@/lib/query/schemas";
 import { createLocalSummary } from "@/lib/query/summary";
 import { enforceRowLimit, SqlValidationError, validateSql } from "@/lib/query/sql-validator";
@@ -72,19 +72,21 @@ export async function POST(request: Request) {
 
   const { question } = parsedQuestion.data;
   try {
-    let rate;
-    try {
-      rate = await checkRateLimit(ipAddress(request));
-    } catch (error) {
-      logServerError("rate-limit", error);
-      return errorResponse("Request protection is temporarily unavailable. Please try again shortly.", 503, "RATE_LIMIT_UNAVAILABLE");
-    }
+    if (isQueryRateLimitEnabled()) {
+      let rate;
+      try {
+        rate = await checkRateLimit(ipAddress(request));
+      } catch (error) {
+        logServerError("rate-limit", error);
+        return errorResponse("Request protection is temporarily unavailable. Please try again shortly.", 503, "RATE_LIMIT_UNAVAILABLE");
+      }
 
-    if (!rate.success) {
-      return NextResponse.json(
-        { error: `You’ve reached today’s ${rate.limit}-question limit. Please try again after the limit resets.`, code: "RATE_LIMITED", reset: rate.reset, limit: rate.limit },
-        { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000))) } },
-      );
+      if (!rate.success) {
+        return NextResponse.json(
+          { error: `You’ve reached today’s ${rate.limit}-question limit. Please try again after the limit resets.`, code: "RATE_LIMITED", reset: rate.reset, limit: rate.limit },
+          { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000))) } },
+        );
+      }
     }
 
     if (process.env.E2E_MOCK_API === "true") return NextResponse.json(mockResponse(question));
