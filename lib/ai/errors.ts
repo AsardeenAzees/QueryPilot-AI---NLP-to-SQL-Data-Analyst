@@ -1,4 +1,4 @@
-export type GeminiFailureReason = "configuration" | "busy" | "invalid_response" | "unavailable";
+export type GeminiFailureReason = "configuration" | "busy" | "invalid_response" | "not_answerable" | "unavailable";
 
 export class GeminiQueryError extends Error {
   constructor(
@@ -19,4 +19,9 @@ export function classifyGeminiFailure(error: unknown): GeminiFailureReason {
   if (/429|quota|rate.?limit|resource.?exhausted/i.test(message)) return "busy";
   if (/json|schema|parse|empty response|invalid response/i.test(message)) return "invalid_response";
   return "unavailable";
+}
+
+export function isRetryableGeminiFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b503\b|service.?unavailable|temporar(?:y|ily)|overload|timeout|fetch failed|ECONNRESET|ETIMEDOUT/i.test(message);
 }

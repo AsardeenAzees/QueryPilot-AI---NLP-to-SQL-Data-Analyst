@@ -35,7 +35,7 @@ The browser never receives database, Gemini, or Upstash credentials. There is no
 - Six-step request progress experience, friendly retry states, keyboard submission, and duplicate-request prevention
 - Responsive Recharts visualisation, sticky result tables, and CSV export
 - Syntax-highlighted PostgreSQL viewer with copy and expand/collapse controls; SQL remains available for cached answers
-- Device-local query history with timestamps, rerun, clear-history, and a 10-question limit
+- Device-local query history with timestamps and rerun/clear controls, plus an environment-configurable per-IP question limit (default 10)
 - Vitest, Playwright, verified IPL facts, GitHub Actions, and Vercel-ready configuration
 
 ## Quick start
@@ -182,7 +182,7 @@ The workflow is continuous integration (CI): it validates that a change is safe 
 
 The current CI workflow does not need Neon, Gemini, or Upstash secrets because browser tests use `E2E_MOCK_API=true`, and the production build does not execute live queries. Application secrets are needed only in local `.env` files and the Vercel project environment.
 
-For deployment, connect the GitHub repository to Vercel. Vercel can create preview deployments for pull requests and a production deployment when changes reach the configured production branch. Add the server environment variables in Vercel rather than GitHub unless a future workflow explicitly performs live integration tests or deployment.
+For deployment, connect the GitHub repository to Vercel. Vercel can create preview deployments for pull requests and a production deployment when changes reach the configured production branch. Add the server environment variables in Vercel rather than GitHub unless a future workflow explicitly performs live integration tests or deployment. Set `QUERY_RATE_LIMIT=20` in the Vercel Production environment for the intended public allowance; when it is missing or invalid, the server defaults to 10 questions per IP.
 
 ## Security boundary
 

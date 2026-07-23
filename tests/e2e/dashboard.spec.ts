@@ -168,7 +168,8 @@ test("friendly service error preserves the question and supports retry", async (
   await page.route("**/api/query", (route) => route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "The AI service is busy right now. Please try again shortly.", code: "AI_BUSY" }) }));
   await page.goto("/");
   await askQuestion(page);
-  await expect(page.locator('[role="alert"]').filter({ hasText: "Gemini is temporarily busy" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[role="alert"]').filter({ hasText: "Gemini quota or traffic limit reached" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[role="alert"]')).toContainText("Error code: AI_BUSY");
   await expect(page.getByLabel("Write your question in everyday language.")).toHaveValue("Who hit the most sixes?");
   await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
 });
@@ -180,8 +181,9 @@ test("malicious question is rejected", async ({ page }) => {
 });
 
 test("rate-limit response is handled", async ({ page }) => {
-  await page.route("**/api/query", (route) => route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: "You’ve reached today’s 10-question limit.", code: "RATE_LIMITED" }) }));
+  await page.route("**/api/query", (route) => route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: "You’ve reached today’s 20-question limit.", code: "RATE_LIMITED", limit: 20 }) }));
   await page.goto("/");
   await askQuestion(page);
   await expect(page.locator('[role="alert"]').filter({ hasText: "Daily question limit reached" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[role="alert"]')).toContainText("20-question limit");
 });

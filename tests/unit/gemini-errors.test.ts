@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyGeminiFailure } from "@/lib/ai/errors";
+import { classifyGeminiFailure, isRetryableGeminiFailure } from "@/lib/ai/errors";
 
 describe("Gemini failure classification", () => {
   it.each([
@@ -10,5 +10,11 @@ describe("Gemini failure classification", () => {
     ["fetch failed", "unavailable"],
   ] as const)("classifies %s as %s", (message, expected) => {
     expect(classifyGeminiFailure(new Error(message))).toBe(expected);
+  });
+
+  it("retries transient unavailability but not quota exhaustion", () => {
+    expect(isRetryableGeminiFailure(new Error("503 service unavailable"))).toBe(true);
+    expect(isRetryableGeminiFailure(new Error("fetch failed"))).toBe(true);
+    expect(isRetryableGeminiFailure(new Error("429 quota exhausted"))).toBe(false);
   });
 });

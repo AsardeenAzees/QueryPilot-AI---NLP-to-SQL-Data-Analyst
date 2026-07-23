@@ -3,7 +3,7 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import type { SemanticModel } from "@/lib/data/types";
 import { generatedQuerySchema, type GeneratedQuery } from "@/lib/query/schemas";
-import { classifyGeminiFailure, GeminiQueryError } from "./errors";
+import { classifyGeminiFailure, GeminiQueryError, isRetryableGeminiFailure } from "./errors";
 
 const responseJsonSchema = {
   type: "object",
@@ -40,24 +40,40 @@ Semantic model:
 ${JSON.stringify(model)}`;
 }
 
-async function generate(prompt: string, model: SemanticModel): Promise<GeneratedQuery> {
-  try {
-    const response = await client().models.generateContent({
-      model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash",
-      contents: prompt,
-      config: {
-        systemInstruction: systemPrompt(model),
-        temperature: 0.1,
-        responseMimeType: "application/json",
-        responseJsonSchema,
-      },
-    });
-    if (!response.text) throw new Error("Gemini returned an empty response.");
-    return generatedQuerySchema.parse(JSON.parse(response.text));
-  } catch (error) {
-    if (error instanceof GeminiQueryError) throw error;
-    throw new GeminiQueryError(classifyGeminiFailure(error), "Gemini query generation failed.", { cause: error });
+function parseGeneratedQuery(responseText: string): GeneratedQuery {
+  const parsed: unknown = JSON.parse(responseText);
+  if (typeof parsed === "object" && parsed !== null && "sql" in parsed && typeof parsed.sql === "string" && parsed.sql.trim() === "") {
+    throw new GeminiQueryError("not_answerable", "The IPL semantic model cannot answer this question objectively.");
   }
+  return generatedQuerySchema.parse(parsed);
+}
+
+async function generate(prompt: string, model: SemanticModel): Promise<GeneratedQuery> {
+  const ai = client();
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const response = await ai.models.generateContent({
+        model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash",
+        contents: prompt,
+        config: {
+          systemInstruction: systemPrompt(model),
+          temperature: 0.1,
+          responseMimeType: "application/json",
+          responseJsonSchema,
+        },
+      });
+      if (!response.text) throw new Error("Gemini returned an empty response.");
+      return parseGeneratedQuery(response.text);
+    } catch (error) {
+      if (error instanceof GeminiQueryError) throw error;
+      if (attempt === 1 && isRetryableGeminiFailure(error)) {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        continue;
+      }
+      throw new GeminiQueryError(classifyGeminiFailure(error), "Gemini query generation failed.", { cause: error });
+    }
+  }
+  throw new GeminiQueryError("unavailable", "Gemini query generation failed after retrying.");
 }
 
 export async function generateQuery(question: string, model: SemanticModel): Promise<GeneratedQuery> {

@@ -23,6 +23,12 @@ function errorResponse(message: string, status: number, code: string) {
 function logServerError(stage: string, error: unknown): void {
   const details = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error";
   console.error(`[QueryPilot:${stage}] ${details}`);
+  if (error instanceof Error && error.cause instanceof Error) {
+    const safeCause = error.cause.message
+      .replace(/(key=)[^&\s]+/gi, "$1[redacted]")
+      .replace(/postgres(?:ql)?:\/\/[^\s]+/gi, "[redacted database URL]");
+    console.error(`[QueryPilot:${stage}:cause] ${error.cause.name}: ${safeCause}`);
+  }
 }
 
 function mockResponse(question: string): QueryResponse {
@@ -76,7 +82,7 @@ export async function POST(request: Request) {
 
     if (!rate.success) {
       return NextResponse.json(
-        { error: "You’ve reached today’s 10-question limit. Please try again after the limit resets.", code: "RATE_LIMITED", reset: rate.reset },
+        { error: `You’ve reached today’s ${rate.limit}-question limit. Please try again after the limit resets.`, code: "RATE_LIMITED", reset: rate.reset, limit: rate.limit },
         { status: 429, headers: { "Retry-After": String(Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000))) } },
       );
     }
@@ -124,9 +130,10 @@ export async function POST(request: Request) {
     if (error instanceof GeminiQueryError) {
       logServerError(`gemini-${error.reason}`, error);
       if (error.reason === "configuration") return errorResponse("Gemini is not configured correctly for this deployment. Check the Vercel Production environment variables and redeploy.", 503, "AI_CONFIGURATION");
-      if (error.reason === "busy") return errorResponse("The AI service is busy right now. Please try again shortly.", 503, "AI_BUSY");
+      if (error.reason === "busy") return errorResponse("The AI service has reached a quota or traffic limit. Please try again later.", 503, "AI_BUSY");
       if (error.reason === "invalid_response") return errorResponse("Gemini returned an answer that could not be validated. Please retry the question.", 502, "AI_INVALID_RESPONSE");
-      return errorResponse("Gemini is temporarily unavailable. Please try again shortly.", 503, "AI_UNAVAILABLE");
+      if (error.reason === "not_answerable") return errorResponse("That question cannot be answered objectively from the IPL dataset. Try asking for a measurable statistic such as runs, wickets, strike rate, or matches won.", 422, "QUESTION_NOT_ANSWERABLE");
+      return errorResponse("Gemini is temporarily unavailable. QueryPilot retried once, but the service did not recover. Please try again shortly.", 503, "AI_UNAVAILABLE");
     }
     if (error instanceof ZodError) return errorResponse("Gemini returned an answer that could not be validated. Please retry the question.", 502, "AI_INVALID_RESPONSE");
     if (error instanceof SqlValidationError) return errorResponse("The generated query did not pass security validation.", 422, "UNSAFE_SQL");
@@ -134,6 +141,6 @@ export async function POST(request: Request) {
     if (/429|quota|rate.?limit/i.test(message)) return errorResponse("The AI service is busy right now. Please try again shortly.", 503, "AI_BUSY");
     if (/timeout|fetch failed|connection/i.test(message)) return errorResponse("The data service is warming up. Please retry in a moment.", 503, "DATA_UNAVAILABLE");
     logServerError("unexpected", error);
-    return errorResponse("We couldn’t answer that question safely. Please try rephrasing it.", 500, "QUERY_FAILED");
+    return errorResponse("An unexpected server error occurred while preparing the answer. Please retry; if it continues, check the Vercel function logs using code QUERY_FAILED.", 500, "QUERY_FAILED");
   }
 }

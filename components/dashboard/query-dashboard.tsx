@@ -19,10 +19,16 @@ import { ResultPanel } from "./result-panel";
 
 interface Overview { seasons: QueryValue; matches: QueryValue; deliveries: QueryValue; players: QueryValue }
 interface ApiError { error?: string; code?: string }
-interface DisplayError { title: string; message: string; canRetry: boolean }
+interface DisplayError { title: string; message: string; canRetry: boolean; code: string }
 
-function isQueryResponse(payload: QueryResponse | ApiError): payload is QueryResponse {
-  return "rows" in payload && Array.isArray(payload.rows);
+function isQueryResponse(payload: unknown): payload is QueryResponse {
+  return typeof payload === "object" && payload !== null && "rows" in payload && Array.isArray(payload.rows);
+}
+
+function isApiError(payload: unknown): payload is ApiError {
+  return typeof payload === "object" && payload !== null
+    && (!("error" in payload) || typeof payload.error === "string")
+    && (!("code" in payload) || typeof payload.code === "string");
 }
 
 function formatValue(value: QueryValue): string {
@@ -33,21 +39,23 @@ function formatValue(value: QueryValue): string {
 
 function displayError(status: number, payload: ApiError): DisplayError {
   const message = payload.error ?? "We couldn’t complete that request. Please try again.";
+  const code = payload.code ?? `HTTP_${status}`;
   switch (payload.code) {
-    case "INVALID_QUESTION": return { title: "Check your question", message, canRetry: false };
-    case "RATE_LIMITED": return { title: "Daily question limit reached", message, canRetry: false };
-    case "AI_BUSY": return { title: "Gemini is temporarily busy", message, canRetry: true };
-    case "AI_CONFIGURATION": return { title: "Production AI configuration needs attention", message, canRetry: false };
-    case "AI_INVALID_RESPONSE": return { title: "Gemini response could not be validated", message, canRetry: true };
-    case "AI_UNAVAILABLE": return { title: "Gemini is temporarily unavailable", message, canRetry: true };
-    case "RATE_LIMIT_UNAVAILABLE": return { title: "Request protection temporarily unavailable", message, canRetry: true };
-    case "DATA_UNAVAILABLE": return { title: "IPL database temporarily unavailable", message, canRetry: true };
-    case "UNSAFE_SQL": return { title: "Query rejected by safety checks", message: "The generated query did not meet the read-only safety policy. Try phrasing the question more directly.", canRetry: false };
-    case "QUERY_FAILED": return { title: "Unable to prepare an answer", message, canRetry: true };
+    case "INVALID_QUESTION": return { title: "Check your question", message, canRetry: false, code };
+    case "QUESTION_NOT_ANSWERABLE": return { title: "Ask for a measurable result", message, canRetry: false, code };
+    case "RATE_LIMITED": return { title: "Daily question limit reached", message, canRetry: false, code };
+    case "AI_BUSY": return { title: "Gemini quota or traffic limit reached", message, canRetry: true, code };
+    case "AI_CONFIGURATION": return { title: "Production AI configuration needs attention", message, canRetry: false, code };
+    case "AI_INVALID_RESPONSE": return { title: "Gemini response could not be validated", message, canRetry: true, code };
+    case "AI_UNAVAILABLE": return { title: "Gemini is temporarily unavailable", message, canRetry: true, code };
+    case "RATE_LIMIT_UNAVAILABLE": return { title: "Request protection temporarily unavailable", message, canRetry: true, code };
+    case "DATA_UNAVAILABLE": return { title: "IPL database temporarily unavailable", message, canRetry: true, code };
+    case "UNSAFE_SQL": return { title: "Query rejected by safety checks", message: "The generated query did not meet the read-only safety policy. Try phrasing the question more directly.", canRetry: false, code };
+    case "QUERY_FAILED": return { title: "Unable to prepare an answer", message, canRetry: true, code };
     default:
-      if (status === 429) return { title: "Daily question limit reached", message, canRetry: false };
-      if (status >= 500) return { title: "Service temporarily unavailable", message, canRetry: true };
-      return { title: "Something went wrong", message, canRetry: true };
+      if (status === 429) return { title: "Daily question limit reached", message, canRetry: false, code };
+      if (status >= 500) return { title: "Service temporarily unavailable", message, canRetry: true, code };
+      return { title: "Something went wrong", message, canRetry: true, code };
   }
 }
 
@@ -105,9 +113,15 @@ export function QueryDashboard() {
     setLoading(true); setProgressStep(0); setProgressComplete(false); setSlowRequest(false);
     try {
       const response = await fetch("/api/query", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: clean }) });
-      const payload: QueryResponse | ApiError = await response.json();
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        setError(displayError(response.status, { error: "The server returned an unreadable response. Please retry and check the deployment logs if it continues.", code: "INVALID_SERVER_RESPONSE" }));
+        return;
+      }
       if (!response.ok || !isQueryResponse(payload)) {
-        setError(displayError(response.status, isQueryResponse(payload) ? {} : payload));
+        setError(displayError(response.status, isApiError(payload) ? payload : { error: "The server returned an unexpected response format.", code: "INVALID_SERVER_RESPONSE" }));
         return;
       }
 
@@ -120,7 +134,7 @@ export function QueryDashboard() {
       localStorage.setItem("querypilot-history", JSON.stringify(updated));
       window.setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     } catch {
-      setError({ title: "Connection interrupted", message: "QueryPilot couldn’t reach the analysis service. Your question is still here, so you can retry safely.", canRetry: true });
+      setError({ title: "Connection interrupted", message: "QueryPilot couldn’t reach the analysis service. Your question is still here, so you can retry safely.", canRetry: true, code: "CLIENT_NETWORK_ERROR" });
     } finally {
       setLoading(false);
       setProgressComplete(false);
@@ -170,7 +184,7 @@ export function QueryDashboard() {
 
         <div className="mx-auto max-w-4xl">
           {loading && <QueryProgress currentStep={progressStep} complete={progressComplete} slow={slowRequest} />}
-          {error && <ErrorState title={error.title} message={error.message} canRetry={error.canRetry} onRetry={() => void executeQuery()} />}
+          {error && <ErrorState title={error.title} message={error.message} errorCode={error.code} canRetry={error.canRetry} onRetry={() => void executeQuery()} />}
         </div>
 
         <div ref={resultRef} className="mx-auto mt-9 max-w-5xl scroll-mt-24">
