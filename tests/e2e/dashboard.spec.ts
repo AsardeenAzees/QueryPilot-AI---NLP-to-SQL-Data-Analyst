@@ -37,6 +37,40 @@ test("theme toggle supports and persists dark mode", async ({ page }) => {
   expect(await page.evaluate(() => localStorage.getItem("theme"))).toBe("dark");
   await page.reload();
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.getByRole("heading", { name: "Need an AI Data Agent for Your Business?" }).scrollIntoViewIfNeeded();
+  await expect(page.getByRole("heading", { name: "Need an AI Data Agent for Your Business?" })).toBeVisible();
+  await expect(page.getByRole("contentinfo")).toBeVisible();
+});
+
+test("contact CTA exposes safe email and portfolio actions", async ({ page }) => {
+  await page.goto("/");
+  const cta = page.getByRole("region", { name: "Need an AI Data Agent for Your Business?" });
+  await expect(page.getByRole("heading", { name: "Need an AI Data Agent for Your Business?" })).toBeVisible();
+  await expect(cta.getByRole("link", { name: "Email Asardeen Azees", exact: true })).toHaveAttribute("href", "mailto:azeesasardeen@gmail.com");
+  const portfolio = cta.getByRole("link", { name: "Visit Asardeen Azees portfolio in a new tab" });
+  await expect(portfolio).toHaveAttribute("href", "https://azeesasardeen.github.io/asardeen-portfolio/");
+  await expect(portfolio).toHaveAttribute("target", "_blank");
+  await expect(portfolio).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(cta).toContainText("workflow automation");
+});
+
+test("footer contains creator details and safe external links", async ({ page }) => {
+  await page.goto("/");
+  const footer = page.getByRole("contentinfo");
+  await expect(footer).toContainText("Asardeen Azees");
+  await expect(footer).toContainText("© 2026 Asardeen Azees. All rights reserved.");
+  await expect(footer.getByRole("link", { name: "Email Asardeen Azees at azeesasardeen@gmail.com" })).toHaveAttribute("href", "mailto:azeesasardeen@gmail.com");
+  const links = [
+    ["Portfolio — opens in a new tab", "https://azeesasardeen.github.io/asardeen-portfolio/"],
+    ["LinkedIn — opens in a new tab", "https://www.linkedin.com/in/asardeen-azees/"],
+    ["GitHub — opens in a new tab", "https://github.com/AsardeenAzees"],
+  ] as const;
+  for (const [label, href] of links) {
+    const link = footer.getByRole("link", { name: label });
+    await expect(link).toHaveAttribute("href", href);
+    await expect(link).toHaveAttribute("target", "_blank");
+    await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  }
 });
 
 test("example questions fill the input", async ({ page }) => {
@@ -54,6 +88,7 @@ test("keyboard shortcut submits and loading prevents duplicates", async ({ page 
   });
   await page.goto("/");
   await page.getByLabel("Write your question in everyday language.").fill("Who hit the most sixes?");
+  await expect(page.getByText("23/500", { exact: true })).toBeVisible();
   await page.getByLabel("Write your question in everyday language.").press(process.platform === "darwin" ? "Meta+Enter" : "Control+Enter");
   await expect(page.getByRole("status", { name: "Query progress" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Analysis in progress" })).toBeDisabled();
@@ -120,6 +155,12 @@ test("mobile layout remains usable", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /Ask the data/i })).toBeVisible();
   await expect(page.getByRole("button", { name: "Choose colour theme" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask QueryPilot" })).toBeVisible();
+  const footer = page.getByRole("contentinfo");
+  await footer.scrollIntoViewIfNeeded();
+  await expect(footer).toBeVisible();
+  const githubLink = footer.getByRole("link", { name: "GitHub — opens in a new tab" });
+  const linkBox = await githubLink.boundingBox();
+  expect(linkBox?.height).toBeGreaterThanOrEqual(44);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

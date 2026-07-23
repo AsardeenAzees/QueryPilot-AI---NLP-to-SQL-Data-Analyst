@@ -5,6 +5,8 @@ import {
   Activity, BarChart3, Database, MessageSquareText, ShieldCheck, Sparkles, Table2, WandSparkles,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { BusinessContactCta } from "@/components/layout/business-contact-cta";
+import { SiteFooter } from "@/components/layout/site-footer";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -134,6 +136,7 @@ export function QueryDashboard() {
   }
 
   return (
+    <>
     <main className="min-h-screen">
       <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--surface)_92%,transparent)] backdrop-blur-lg">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -183,7 +186,9 @@ export function QueryDashboard() {
           </div>
         </section>
       </div>
-      <footer className="border-t border-[var(--border)] bg-[var(--surface)]"><div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-7 text-xs text-[var(--text-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8"><span>QueryPilot AI — Natural Language Data Analyst</span><span>No login. No uploads. Read-only analytics.</span></div></footer>
+      <BusinessContactCta />
     </main>
+    <SiteFooter />
+    </>
   );
 }
