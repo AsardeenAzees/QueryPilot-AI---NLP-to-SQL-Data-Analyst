@@ -3,6 +3,7 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import type { SemanticModel } from "@/lib/data/types";
 import { generatedQuerySchema, type GeneratedQuery } from "@/lib/query/schemas";
+import { classifyGeminiFailure, GeminiQueryError } from "./errors";
 
 const responseJsonSchema = {
   type: "object",
@@ -26,8 +27,8 @@ const responseJsonSchema = {
 };
 
 function client(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
+  if (!apiKey) throw new GeminiQueryError("configuration", "GEMINI_API_KEY is not configured.");
   return new GoogleGenAI({ apiKey });
 }
 
@@ -40,18 +41,23 @@ ${JSON.stringify(model)}`;
 }
 
 async function generate(prompt: string, model: SemanticModel): Promise<GeneratedQuery> {
-  const response = await client().models.generateContent({
-    model: process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
-    contents: prompt,
-    config: {
-      systemInstruction: systemPrompt(model),
-      temperature: 0.1,
-      responseMimeType: "application/json",
-      responseJsonSchema,
-    },
-  });
-  if (!response.text) throw new Error("Gemini returned an empty response.");
-  return generatedQuerySchema.parse(JSON.parse(response.text));
+  try {
+    const response = await client().models.generateContent({
+      model: process.env.GEMINI_MODEL?.trim() || "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction: systemPrompt(model),
+        temperature: 0.1,
+        responseMimeType: "application/json",
+        responseJsonSchema,
+      },
+    });
+    if (!response.text) throw new Error("Gemini returned an empty response.");
+    return generatedQuerySchema.parse(JSON.parse(response.text));
+  } catch (error) {
+    if (error instanceof GeminiQueryError) throw error;
+    throw new GeminiQueryError(classifyGeminiFailure(error), "Gemini query generation failed.", { cause: error });
+  }
 }
 
 export async function generateQuery(question: string, model: SemanticModel): Promise<GeneratedQuery> {

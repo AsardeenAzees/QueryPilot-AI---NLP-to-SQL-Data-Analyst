@@ -64,8 +64,10 @@ Playwright starts the app with deterministic mock query results; it does not spe
 1. Push the repository to GitHub and import it in Vercel as a Next.js project.
 2. Add `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` to Production and Preview environments.
 3. Do **not** add `DATABASE_ADMIN_URL` to Vercel.
-4. Keep the default build command `npm run build`. CSV import is deliberately not connected to the build.
-5. Deploy, then test an example question and verify that the SQL panel contains a SELECT-only bounded query.
-6. Add the production domain to portfolio links and capture the screenshot placeholders in the README.
+4. In Vercel, confirm each variable is enabled for **Production** (not only Development or Preview), has no surrounding quotes or trailing spaces, and then redeploy. Environment changes do not modify an already-running deployment.
+5. Test `/api/overview` first, then submit a new, uncached question. If overview works but questions fail, inspect **Project > Deployments > Functions > `/api/query`**; the API returns separate safe codes for Gemini configuration, Gemini availability, Upstash rate limiting, SQL validation, and Neon availability.
+6. Keep the default build command `npm run build`. CSV import is deliberately not connected to the build.
+7. Deploy, then test an example question and verify that the SQL panel contains a SELECT-only bounded query.
+8. Add the production domain to portfolio links and capture the screenshot placeholders in the README.
 
 GitHub Actions runs type checking, lint, unit tests, the production build, and Chromium tests on pushes and pull requests.

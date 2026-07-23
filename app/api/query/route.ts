@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { generateQuery, repairQuery } from "@/lib/ai/gemini";
+import { GeminiQueryError } from "@/lib/ai/errors";
 import { loadSemanticModel } from "@/lib/data/loaders";
 import { executeReadOnlyQuery } from "@/lib/db/neon";
 import { cacheResult, checkRateLimit, getCachedResult } from "@/lib/rate-limit/upstash";
@@ -17,6 +18,11 @@ function ipAddress(request: Request): string {
 
 function errorResponse(message: string, status: number, code: string) {
   return NextResponse.json({ error: message, code }, { status });
+}
+
+function logServerError(stage: string, error: unknown): void {
+  const details = error instanceof Error ? `${error.name}: ${error.message}` : "Unknown error";
+  console.error(`[QueryPilot:${stage}] ${details}`);
 }
 
 function mockResponse(question: string): QueryResponse {
@@ -46,11 +52,28 @@ async function executePlan(plan: GeneratedQuery, model: Awaited<ReturnType<typeo
 }
 
 export async function POST(request: Request) {
+  let body: unknown;
   try {
-    const body: unknown = await request.json();
-    const { question } = questionSchema.parse(body);
+    body = await request.json();
+  } catch {
+    return errorResponse("The request body must be valid JSON.", 400, "INVALID_JSON");
+  }
 
-    const rate = await checkRateLimit(ipAddress(request));
+  const parsedQuestion = questionSchema.safeParse(body);
+  if (!parsedQuestion.success) {
+    return errorResponse(parsedQuestion.error.issues[0]?.message ?? "Invalid question.", 400, "INVALID_QUESTION");
+  }
+
+  const { question } = parsedQuestion.data;
+  try {
+    let rate;
+    try {
+      rate = await checkRateLimit(ipAddress(request));
+    } catch (error) {
+      logServerError("rate-limit", error);
+      return errorResponse("Request protection is temporarily unavailable. Please try again shortly.", 503, "RATE_LIMIT_UNAVAILABLE");
+    }
+
     if (!rate.success) {
       return NextResponse.json(
         { error: "You’ve reached today’s 10-question limit. Please try again after the limit resets.", code: "RATE_LIMITED", reset: rate.reset },
@@ -59,7 +82,12 @@ export async function POST(request: Request) {
     }
 
     if (process.env.E2E_MOCK_API === "true") return NextResponse.json(mockResponse(question));
-    const cached = await getCachedResult(question);
+    let cached: QueryResponse | null = null;
+    try {
+      cached = await getCachedResult(question);
+    } catch (error) {
+      logServerError("cache-read", error);
+    }
     if (cached) return NextResponse.json({ ...cached, cached: true });
 
     const model = await loadSemanticModel("ipl");
@@ -86,16 +114,26 @@ export async function POST(request: Request) {
       executionTimeMs: executed.result.executionTimeMs,
       cached: false,
     };
-    await cacheResult(question, response);
+    try {
+      await cacheResult(question, response);
+    } catch (error) {
+      logServerError("cache-write", error);
+    }
     return NextResponse.json(response, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    if (error instanceof ZodError) return errorResponse(error.issues[0]?.message ?? "Invalid question.", 400, "INVALID_QUESTION");
-    if (error instanceof SyntaxError) return errorResponse("The request body must be valid JSON.", 400, "INVALID_JSON");
+    if (error instanceof GeminiQueryError) {
+      logServerError(`gemini-${error.reason}`, error);
+      if (error.reason === "configuration") return errorResponse("Gemini is not configured correctly for this deployment. Check the Vercel Production environment variables and redeploy.", 503, "AI_CONFIGURATION");
+      if (error.reason === "busy") return errorResponse("The AI service is busy right now. Please try again shortly.", 503, "AI_BUSY");
+      if (error.reason === "invalid_response") return errorResponse("Gemini returned an answer that could not be validated. Please retry the question.", 502, "AI_INVALID_RESPONSE");
+      return errorResponse("Gemini is temporarily unavailable. Please try again shortly.", 503, "AI_UNAVAILABLE");
+    }
+    if (error instanceof ZodError) return errorResponse("Gemini returned an answer that could not be validated. Please retry the question.", 502, "AI_INVALID_RESPONSE");
     if (error instanceof SqlValidationError) return errorResponse("The generated query did not pass security validation.", 422, "UNSAFE_SQL");
     const message = error instanceof Error ? error.message : "Unknown error";
     if (/429|quota|rate.?limit/i.test(message)) return errorResponse("The AI service is busy right now. Please try again shortly.", 503, "AI_BUSY");
     if (/timeout|fetch failed|connection/i.test(message)) return errorResponse("The data service is warming up. Please retry in a moment.", 503, "DATA_UNAVAILABLE");
-    console.error("Query route failed", error);
+    logServerError("unexpected", error);
     return errorResponse("We couldn’t answer that question safely. Please try rephrasing it.", 500, "QUERY_FAILED");
   }
 }

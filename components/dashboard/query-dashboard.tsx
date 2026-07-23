@@ -37,6 +37,10 @@ function displayError(status: number, payload: ApiError): DisplayError {
     case "INVALID_QUESTION": return { title: "Check your question", message, canRetry: false };
     case "RATE_LIMITED": return { title: "Daily question limit reached", message, canRetry: false };
     case "AI_BUSY": return { title: "Gemini is temporarily busy", message, canRetry: true };
+    case "AI_CONFIGURATION": return { title: "Production AI configuration needs attention", message, canRetry: false };
+    case "AI_INVALID_RESPONSE": return { title: "Gemini response could not be validated", message, canRetry: true };
+    case "AI_UNAVAILABLE": return { title: "Gemini is temporarily unavailable", message, canRetry: true };
+    case "RATE_LIMIT_UNAVAILABLE": return { title: "Request protection temporarily unavailable", message, canRetry: true };
     case "DATA_UNAVAILABLE": return { title: "IPL database temporarily unavailable", message, canRetry: true };
     case "UNSAFE_SQL": return { title: "Query rejected by safety checks", message: "The generated query did not meet the read-only safety policy. Try phrasing the question more directly.", canRetry: false };
     case "QUERY_FAILED": return { title: "Unable to prepare an answer", message, canRetry: true };
